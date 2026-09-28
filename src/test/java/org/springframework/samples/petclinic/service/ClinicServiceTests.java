@@ -17,6 +17,7 @@
 package org.springframework.samples.petclinic.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -30,7 +31,9 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.samples.petclinic.owner.Owner;
 import org.springframework.samples.petclinic.owner.OwnerRepository;
 import org.springframework.samples.petclinic.owner.Pet;
@@ -93,6 +96,43 @@ class ClinicServiceTests {
 
 		owners = this.owners.findByLastNameStartingWith("Daviss", pageable);
 		assertThat(owners).isEmpty();
+	}
+
+	@Test
+	void shouldFindOwnersByLastNameSortedIgnoringCase() {
+		Owner owner = new Owner();
+		owner.setFirstName("Zeke");
+		owner.setLastName("DAVIS");
+		owner.setAddress("1 Test Street");
+		owner.setCity("Test City");
+		owner.setTelephone("0000000000");
+		this.owners.save(owner);
+
+		Sort ownerSorting = Sort.by(Sort.Order.asc("lastName").ignoreCase(), Sort.Order.asc("firstName").ignoreCase(),
+				Sort.Order.asc("id"));
+		Page<Owner> results = this.owners.findByLastNameStartingWith("D", PageRequest.of(0, 5, ownerSorting));
+
+		assertThat(results.getContent()).extracting(Owner::getFirstName, Owner::getLastName)
+			.containsExactly(tuple("Betty", "Davis"), tuple("Harold", "Davis"), tuple("Zeke", "DAVIS"));
+	}
+
+	@Test
+	void shouldKeepOwnersSortedAcrossPageBoundaries() {
+		Sort ownerSorting = Sort.by(Sort.Order.asc("lastName").ignoreCase(), Sort.Order.asc("firstName").ignoreCase(),
+				Sort.Order.asc("id"));
+		Page<Owner> firstPage = this.owners.findByLastNameStartingWith("", PageRequest.of(0, 5, ownerSorting));
+		Page<Owner> secondPage = this.owners.findByLastNameStartingWith("", PageRequest.of(1, 5, ownerSorting));
+
+		assertThat(firstPage.getContent()).extracting(Owner::getFirstName, Owner::getLastName)
+			.containsExactly(tuple("Jeff", "Black"), tuple("Jean", "Coleman"), tuple("Betty", "Davis"),
+					tuple("Harold", "Davis"), tuple("Maria", "Escobito"));
+		assertThat(secondPage.getContent()).extracting(Owner::getFirstName, Owner::getLastName)
+			.containsExactly(tuple("Carlos", "Estaban"), tuple("George", "Franklin"), tuple("Peter", "McTavish"),
+					tuple("Eduardo", "Rodriquez"), tuple("David", "Schroeder"));
+		assertThat(firstPage.getTotalElements()).isEqualTo(10);
+		assertThat(firstPage.getTotalPages()).isEqualTo(2);
+		assertThat(secondPage.getTotalElements()).isEqualTo(10);
+		assertThat(secondPage.getTotalPages()).isEqualTo(2);
 	}
 
 	@Test

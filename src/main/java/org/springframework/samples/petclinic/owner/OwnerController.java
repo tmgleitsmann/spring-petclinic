@@ -22,6 +22,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -49,6 +50,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 class OwnerController {
 
 	private static final String VIEWS_OWNER_CREATE_OR_UPDATE_FORM = "owners/createOrUpdateOwnerForm";
+
+	private static final Sort OWNER_SORTING = Sort.by(Sort.Order.asc("lastName").ignoreCase(),
+			Sort.Order.asc("firstName").ignoreCase(), Sort.Order.asc("id"));
 
 	private final OwnerRepository owners;
 
@@ -132,7 +136,7 @@ class OwnerController {
 
 	private Page<Owner> findPaginatedForOwnersLastName(int page, String lastname) {
 		int pageSize = 5;
-		Pageable pageable = PageRequest.of(page - 1, pageSize);
+		Pageable pageable = PageRequest.of(page - 1, pageSize, OWNER_SORTING);
 		return owners.findByLastNameStartingWith(lastname, pageable);
 	}
 
